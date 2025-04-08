@@ -2,6 +2,7 @@ const Webinar = require("../models/Webinar");
 const WebinarRegistration = require("../models/WebinarRegistration");
 const ErrorResponse = require("../utils/errorResponse");
 const { body, param, validationResult } = require("express-validator");
+const sendEmail = require("../config/email");
 
 // Validation middleware
 exports.validateWebinar = [
@@ -415,14 +416,32 @@ exports.registerPublicForWebinar = async (req, res) => {
       name,
       email,
       phone: phone || "",
-      occupation: occupation || "",
-      organization: organization || "",
       status: "registered",
     });
 
     // Increment participants count
     webinar.participantsCount = (webinar.participantsCount || 0) + 1;
     await webinar.save();
+
+    // Send confirmation email
+    const emailSubject = `Confirmation: Registration for ${webinar.title}`;
+    const emailMessage = `
+      <h2>Thank you for registering!</h2>
+      <p>Hi ${name},</p>
+      <p>You have successfully registered for the webinar: <strong>${webinar.title}</strong>.</p>
+      <p><strong>Webinar Details:</strong></p>
+      <ul>
+        <li><strong>Date & Time:</strong> ${new Date(webinar.date).toLocaleString()}</li>
+      </ul>
+      <p>If you did not register, please ignore this email.</p>
+      <p>Best regards,<br>Your Webinar Team</p>
+    `;
+
+    await sendEmail({
+      email,
+      subject: emailSubject,
+      html: emailMessage,
+    });
 
     // Send successful response
     res.status(201).json({
