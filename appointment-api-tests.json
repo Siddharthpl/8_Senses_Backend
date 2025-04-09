@@ -1,0 +1,184 @@
+{
+  "publicAppointment": {
+    "submitPublicAppointment": {
+      "method": "POST",
+      "url": "/api/appointments/public/submit",
+      "body": {
+        "motherName": "Sarah",
+        "fatherName": "John",
+        "childName": "Emma Smith",
+        "contactNumber": "9876543210",
+        "email": "parents@example.com",
+        "childAge": "5-7 years",
+        "serviceType": "assessment",
+        "preferredTime": "Morning",
+        "specialNeeds": "Mild speech delay",
+        "preferredDate": "2023-07-15T00:00:00.000Z",
+        "paymentMethod": "credit_card"
+      }
+    },
+    "checkPublicAppointmentStatus": {
+      "method": "GET",
+      "url": "/api/appointments/public/status/:id",
+      "urlParams": {
+        "id": "60d21b4667d0d8992e610c85"
+      }
+    },
+    "getPublicAppointmentRequests": {
+      "method": "GET",
+      "url": "/api/appointments/public",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      }
+    },
+    "getPublicAppointment": {
+      "method": "GET",
+      "url": "/api/appointments/public/:id",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "urlParams": {
+        "id": "60d21b4667d0d8992e610c85"
+      }
+    }
+  },
+  "regularAppointment": {
+    "createAppointment": {
+      "method": "POST",
+      "url": "/api/appointments",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "body": {
+        "serviceType": "therapy",
+        "date": "2023-07-15T09:00:00.000Z",
+        "timeSlot": "09:00 AM - 10:00 AM",
+        "patient": {
+          "patientId": "60d21b4667d0d8992e610c85"
+        },
+        "medicalInfo": {
+          "primaryConcern": "Speech therapy follow-up"
+        },
+        "assignedTherapist": "60d21b4667d0d8992e610c86",
+        "notes": "Regular follow-up session"
+      }
+    },
+    "createNewPatientAppointment": {
+      "method": "POST",
+      "url": "/api/appointments",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "body": {
+        "serviceType": "assessment",
+        "date": "2023-07-10T14:00:00.000Z",
+        "timeSlot": "02:00 PM - 03:00 PM",
+        "patient": {
+          "childName": "Robert Smith",
+          "childDOB": "2018-03-15T00:00:00.000Z",
+          "childGender": "male"
+        },
+        "parentInfo": {
+          "parentName": "Sarah Smith",
+          "contactNumber": "9876543210",
+          "email": "sarah@example.com",
+          "address": "123 Main St, Anytown, USA"
+        },
+        "medicalInfo": {
+          "primaryConcern": "Delayed speech development"
+        }
+      }
+    },
+    "saveAppointmentAsDraft": {
+      "method": "POST",
+      "url": "/api/appointments/save-later",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "body": {
+        "serviceType": "consultation",
+        "date": "2023-07-20T11:00:00.000Z",
+        "patient": {
+          "patientId": "60d21b4667d0d8992e610c85"
+        },
+        "medicalInfo": {
+          "primaryConcern": "Initial consultation"
+        },
+        "isDraft": true
+      }
+    },
+    "getAppointments": {
+      "method": "GET",
+      "url": "/api/appointments",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "queryParams": {
+        "status": "confirmed",
+        "startDate": "2023-07-01",
+        "endDate": "2023-07-31"
+      }
+    },
+    "getAppointment": {
+      "method": "GET",
+      "url": "/api/appointments/:id",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "urlParams": {
+        "id": "60d21b4667d0d8992e610c87"
+      }
+    },
+    "updateAppointmentStatus": {
+      "method": "PUT",
+      "url": "/api/appointments/:id/status",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "urlParams": {
+        "id": "60d21b4667d0d8992e610c87"
+      },
+      "body": {
+        "status": "completed"
+      }
+    },
+    "convertPublicAppointment": {
+      "method": "PUT",
+      "url": "/api/appointments/convert-public/:id",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "urlParams": {
+        "id": "60d21b4667d0d8992e610c85"
+      },
+      "body": {
+        "assignedTherapist": "60d21b4667d0d8992e610c86",
+        "timeSlot": "10:00 AM - 11:00 AM",
+        "serviceType": "assessment",
+        "paymentAmount": 150,
+        "paymentMethod": "cash",
+        "notes": "Converted from public request"
+      }
+    },
+    "getTherapistAppointments": {
+      "method": "GET",
+      "url": "/api/appointments/therapist/:therapistId",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "urlParams": {
+        "therapistId": "60d21b4667d0d8992e610c86"
+      }
+    },
+    "getPatientAppointments": {
+      "method": "GET",
+      "url": "/api/appointments/patient/:patientId",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "urlParams": {
+        "patientId": "60d21b4667d0d8992e610c85"
+      }
+    }
+  }
+} 

@@ -1,0 +1,484 @@
+{
+	"info": {
+		"_postman_id": "8f5e2b3a-4c6d-4e1a-9f8d-3e2b1c4d5e6f",
+		"name": "Hospital Management API Tests",
+		"description": "API tests for 8Senses Pediatric Therapy Clinic",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.token) {",
+									"    pm.environment.set('token', jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"receptionist@example.com\",\n    \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login to get authentication token"
+					}
+				}
+			]
+		},
+		{
+			"name": "Public Appointments",
+			"item": [
+				{
+					"name": "Submit Public Appointment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"patient\": {\n        \"childName\": \"John Doe\",\n        \"childAge\": \"5\",\n        \"childGender\": \"male\"\n    },\n    \"parentInfo\": {\n        \"motherName\": \"Jane Doe\",\n        \"fatherName\": \"James Doe\",\n        \"contactNumber\": \"+1234567890\",\n        \"email\": \"parent@example.com\"\n    },\n    \"serviceType\": \"assessment\",\n    \"date\": \"2024-04-15\",\n    \"timeSlot\": \"10:00 AM\",\n    \"specialNeeds\": \"None\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/appointments/public",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "appointments", "public"]
+						},
+						"description": "Submit a public appointment request"
+					}
+				},
+				{
+					"name": "Check Public Appointment Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/appointments/public/status/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "appointments", "public", "status", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "appointment_id_here"
+								}
+							]
+						},
+						"description": "Check status of a public appointment request"
+					}
+				}
+			]
+		},
+		{
+			"name": "Receptionist Appointments",
+			"item": [
+				{
+					"name": "Get All Public Requests",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/appointments/public-requests",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "appointments", "public-requests"]
+						},
+						"description": "Get all pending public appointment requests"
+					}
+				},
+				{
+					"name": "Convert Public Request to Appointment",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"therapistId\": \"therapist_id_here\",\n    \"date\": \"2024-04-15\",\n    \"timeSlot\": \"10:00 AM\",\n    \"serviceId\": \"service_id_here\",\n    \"paymentAmount\": 1000,\n    \"paymentMethod\": \"credit_card\",\n    \"patientId\": \"patient_id_here\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/appointments/:id/convert-public-request",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "appointments", ":id", "convert-public-request"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "appointment_id_here"
+								}
+							]
+						},
+						"description": "Convert a public request to a confirmed appointment"
+					}
+				},
+				{
+					"name": "Create New Appointment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fullName\": \"John Doe\",\n    \"email\": \"patient@example.com\",\n    \"phone\": \"+1234567890\",\n    \"therapistId\": \"therapist_id_here\",\n    \"serviceId\": \"service_id_here\",\n    \"date\": \"2024-04-15\",\n    \"startTime\": \"10:00\",\n    \"endTime\": \"11:00\",\n    \"type\": \"assessment\",\n    \"notes\": \"Initial assessment\",\n    \"paymentAmount\": 1000\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/appointments",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "appointments"]
+						},
+						"description": "Create a new appointment directly"
+					}
+				},
+				{
+					"name": "Get All Appointments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/appointments",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "appointments"],
+							"query": [
+								{
+									"key": "status",
+									"value": "confirmed",
+									"description": "Filter by status",
+									"disabled": true
+								},
+								{
+									"key": "startDate",
+									"value": "2024-04-01",
+									"description": "Filter by start date",
+									"disabled": true
+								},
+								{
+									"key": "endDate",
+									"value": "2024-04-30",
+									"description": "Filter by end date",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get all appointments with optional filters"
+					}
+				},
+				{
+					"name": "Update Appointment",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"confirmed\",\n    \"notes\": \"Updated notes\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/appointments/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "appointments", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "appointment_id_here"
+								}
+							]
+						},
+						"description": "Update an existing appointment"
+					}
+				},
+				{
+					"name": "Delete Appointment",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/appointments/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "appointments", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "appointment_id_here"
+								}
+							]
+						},
+						"description": "Delete an appointment"
+					}
+				},
+				{
+					"name": "Save Appointment Draft",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fullName\": \"John Doe\",\n    \"email\": \"patient@example.com\",\n    \"phone\": \"+1234567890\",\n    \"date\": \"2024-04-15\",\n    \"startTime\": \"10:00\",\n    \"endTime\": \"11:00\",\n    \"notes\": \"Draft appointment\",\n    \"type\": \"assessment\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/appointments/save-later",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "appointments", "save-later"]
+						},
+						"description": "Save appointment as draft"
+					}
+				}
+			]
+		},
+		{
+			"name": "Therapist Management",
+			"item": [
+				{
+					"name": "Get All Therapists",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/therapists",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "therapists"],
+							"query": [
+								{
+									"key": "specialization",
+									"value": "Occupational Therapy",
+									"description": "Filter by specialization",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get list of all therapists"
+					}
+				},
+				{
+					"name": "Get Available Therapists",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/therapists/available",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "therapists", "available"],
+							"query": [
+								{
+									"key": "specialty",
+									"value": "Occupational Therapy",
+									"description": "Filter by specialty",
+									"disabled": true
+								},
+								{
+									"key": "date",
+									"value": "2024-04-15",
+									"description": "Check availability for date",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get available therapists with optional filters"
+					}
+				},
+				{
+					"name": "Create Therapist",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"specialization\": \"Occupational Therapy\",\n    \"qualifications\": [\"MBBS\", \"MD Pediatrics\"],\n    \"experience\": 5,\n    \"bio\": \"Experienced pediatric therapist\",\n    \"workingHours\": {\n        \"monday\": {\n            \"start\": \"09:00\",\n            \"end\": \"17:00\"\n        },\n        \"tuesday\": {\n            \"start\": \"09:00\",\n            \"end\": \"17:00\"\n        },\n        \"wednesday\": {\n            \"start\": \"09:00\",\n            \"end\": \"17:00\"\n        },\n        \"thursday\": {\n            \"start\": \"09:00\",\n            \"end\": \"17:00\"\n        },\n        \"friday\": {\n            \"start\": \"09:00\",\n            \"end\": \"17:00\"\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/therapists",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "therapists"]
+						},
+						"description": "Create a new therapist profile"
+					}
+				},
+				{
+					"name": "Get Therapist Appointments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/appointments/therapist/:therapistId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "appointments", "therapist", ":therapistId"],
+							"variable": [
+								{
+									"key": "therapistId",
+									"value": "therapist_id_here"
+								}
+							]
+						},
+						"description": "Get all appointments for a specific therapist"
+					}
+				},
+				{
+					"name": "Update Therapist",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"specialization\": \"Speech Therapy\",\n    \"experience\": 6,\n    \"isAvailable\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/therapists/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "therapists", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "therapist_id_here"
+								}
+							]
+						},
+						"description": "Update therapist information"
+					}
+				},
+				{
+					"name": "Delete Therapist",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/therapists/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "therapists", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "therapist_id_here"
+								}
+							]
+						},
+						"description": "Delete a therapist profile"
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		}
+	]
+} 
