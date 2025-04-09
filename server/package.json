@@ -25,6 +25,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "express-async-handler": "^1.2.0",
     "express-fileupload": "^1.5.1",
     "express-mongo-sanitize": "^2.2.0",
     "express-validator": "^7.2.1",
@@ -40,6 +41,6 @@
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.1.9"
   }
 }

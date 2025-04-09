@@ -74,6 +74,20 @@ const SubscriptionSchema = new mongoose.Schema(
         },
       },
     ],
+    metadata: {
+      razorpayOrderId: String,
+      razorpayPaymentId: String,
+      razorpaySignature: String,
+      lastPaymentDate: Date,
+      nextPaymentDate: Date,
+      paymentGateway: {
+        type: String,
+        enum: ["razorpay", "stripe", "paypal", "manual"],
+        default: "razorpay"
+      },
+      subscriptionId: String,
+      customerId: String,
+    }
   },
   {
     timestamps: true,

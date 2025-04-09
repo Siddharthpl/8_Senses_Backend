@@ -13,6 +13,9 @@ const fileUpload = require("express-fileupload");
 const connectDB = require("./config/db");
 const errorHandler = require("./middleware/errorHandler");
 
+// Load env vars
+dotenv.config(); // Look for .env in server folder
+
 // Import routes
 const productRoutes = require("./routes/productRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -40,9 +43,7 @@ const discountRoutes = require("./routes/discountRoutes");
 // Add new routes
 const galleryRoutes = require("./routes/galleryRoutes");
 const diseaseRoutes = require("./routes/diseaseRoutes");
-
-// Load env vars
-dotenv.config({ path: "./config/config.env" });
+const paymentRoutes = require("./routes/paymentRoutes");
 
 // Connect to database
 connectDB();
@@ -115,6 +116,7 @@ app.use("/api/discounts", discountRoutes);
 // Mount new routes
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/diseases", diseaseRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Root route
 app.get("/", (req, res) => {

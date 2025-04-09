@@ -153,6 +153,16 @@ const OrderSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    metadata: {
+      razorpayOrderId: String,
+      razorpayPaymentId: String,
+      razorpaySignature: String,
+      paymentGateway: {
+        type: String,
+        enum: ["razorpay", "stripe", "paypal", "manual"],
+        default: "razorpay"
+      }
+    },
   },
   {
     toJSON: { virtuals: true },
