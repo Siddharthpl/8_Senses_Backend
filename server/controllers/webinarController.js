@@ -2,8 +2,8 @@ const Webinar = require("../models/Webinar");
 const WebinarRegistration = require("../models/WebinarRegistration");
 const ErrorResponse = require("../utils/errorResponse");
 const { body, param, validationResult } = require("express-validator");
-const sendEmail = require("../config/email");
-
+const { sendEmail } = require("../config/email");
+console.log('Email function exists? WC', typeof sendEmail === 'function');
 // Validation middleware
 exports.validateWebinar = [
   body("title")
@@ -432,16 +432,24 @@ exports.registerPublicForWebinar = async (req, res) => {
       <p><strong>Webinar Details:</strong></p>
       <ul>
         <li><strong>Date & Time:</strong> ${new Date(webinar.date).toLocaleString()}</li>
+        <li><strong>Duration:</strong> ${webinar.duration} minutes</li>
+        <li><strong>Speaker:</strong> ${webinar.speaker}</li>
       </ul>
       <p>If you did not register, please ignore this email.</p>
       <p>Best regards,<br>Your Webinar Team</p>
     `;
 
-    await sendEmail({
-      email,
-      subject: emailSubject,
-      html: emailMessage,
-    });
+    try {
+      await sendEmail({
+        to: email,  // Changed from 'email' to 'to'
+        subject: emailSubject,
+        html: emailMessage,
+      });
+      console.log('Webinar registration confirmation email sent successfully');
+    } catch (emailError) {
+      console.error('Error sending webinar registration email:', emailError);
+      // Continue with the response even if email fails
+    }
 
     // Send successful response
     res.status(201).json({

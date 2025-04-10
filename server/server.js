@@ -44,6 +44,7 @@ const discountRoutes = require("./routes/discountRoutes");
 const galleryRoutes = require("./routes/galleryRoutes");
 const diseaseRoutes = require("./routes/diseaseRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const appointmentFormRoutes = require('./routes/appointmentFormRoutes');
 
 // Connect to database
 connectDB();
@@ -117,6 +118,7 @@ app.use("/api/discounts", discountRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/diseases", diseaseRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use('/api/appointment-forms', appointmentFormRoutes);
 
 // Root route
 app.get("/", (req, res) => {
