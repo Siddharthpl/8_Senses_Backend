@@ -4,6 +4,7 @@ const Patient = require("../models/Patient");
 const User = require("../models/User");
 const Service = require("../models/Service");
 const { body, validationResult } = require("express-validator");
+const { sendEmail } = require("../config/email");
 
 
 // @desc    Get all appointments
@@ -15,7 +16,7 @@ exports.getAppointments = async (req, res) => {
 
     // If user is a therapist, only show their appointments
     if (req.user.role === "therapist") {
-      query.assignedTherapist = req.user._id;
+      query.doctorId = req.user._id;
     }
 
     // Allow filtering by status, date range, patient, or therapist
@@ -24,11 +25,11 @@ exports.getAppointments = async (req, res) => {
     }
 
     if (req.query.patientId) {
-      query["patient.patientId"] = req.query.patientId;
+      query.patientId = req.query.patientId;
     }
 
     if (req.query.therapistId && req.user.role !== "therapist") {
-      query.assignedTherapist = req.query.therapistId;
+      query.doctorId = req.query.therapistId;
     }
 
     if (req.query.startDate && req.query.endDate) {
@@ -44,11 +45,11 @@ exports.getAppointments = async (req, res) => {
 
     const appointments = await Appointment.find(query)
       .populate({
-        path: "patient.patientId",
-        select: "firstName lastName dateOfBirth gender",
+        path: "patientId",
+        select: "childName dateOfBirth gender",
       })
       .populate({
-        path: "assignedTherapist",
+        path: "doctorId",
         select: "firstName lastName",
         model: "User",
       })
@@ -75,11 +76,11 @@ exports.getAppointment = async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id)
       .populate({
-        path: "patient.patientId",
-        select: "firstName lastName dateOfBirth gender emergencyContact",
+        path: "patientId",
+        select: "childName dateOfBirth gender emergencyContact",
       })
       .populate({
-        path: "assignedTherapist",
+        path: "doctorId",
         select: "firstName lastName email phone",
         model: "User",
       });
@@ -95,12 +96,12 @@ exports.getAppointment = async (req, res) => {
     if (
       req.user.role !== "admin" &&
       req.user.role !== "receptionist" &&
-      appointment.assignedTherapist._id.toString() !== req.user._id.toString()
+      appointment.doctorId._id.toString() !== req.user._id.toString()
     ) {
-      return res.status(403).json({
-        success: false,
-        error: "Not authorized to view this appointment",
-      });
+        return res.status(403).json({
+          success: false,
+          error: "Not authorized to view this appointment",
+        });
     }
 
     res.status(200).json({
@@ -154,7 +155,12 @@ exports.validateAppointment = [
   
   body('date')
     .notEmpty().withMessage("Appointment date is required")
-    .isDate().withMessage("Please provide a valid date")
+    .isDate().withMessage("Please provide a valid date"),
+
+  body('status')
+    .optional()
+    .isIn(["scheduled", "completed", "cancelled", "no_show"])
+    .withMessage("Invalid appointment status")
 ];
 
 // @desc    Save appointment as draft
@@ -165,7 +171,7 @@ exports.saveAppointmentAsDraft = async (req, res, next) => {
     const appointmentData = {
       ...req.body,
       isDraft: true,
-      status: "requested"
+      status: "scheduled"
     };
 
     const draft = await Appointment.create(appointmentData);
@@ -194,7 +200,7 @@ exports.createAppointment = async (req, res) => {
 
   try {
     // Determine if this is for a registered patient or new patient
-    const patientId = req.body.patient?.patientId;
+    const patientId = req.body.patientId;
     
     // If patientId provided, verify the patient exists
     if (patientId) {
@@ -206,14 +212,14 @@ exports.createAppointment = async (req, res) => {
         });
       }
     }
-    
-    // Check if therapist exists if provided
-    if (req.body.assignedTherapist) {
-      const therapist = await User.findById(req.body.assignedTherapist);
-      if (!therapist || therapist.role !== "therapist") {
+
+    // Check if doctor exists if provided
+    if (req.body.doctorId) {
+      const doctor = await User.findById(req.body.doctorId);
+      if (!doctor || doctor.role !== "therapist") {
         return res.status(404).json({
           success: false,
-          error: "Therapist not found",
+          error: "Doctor not found",
         });
       }
     }
@@ -221,13 +227,14 @@ exports.createAppointment = async (req, res) => {
     // Prepare appointment data
     const appointmentData = {
       ...req.body,
-      status: req.body.assignedTherapist ? "confirmed" : "requested",
+      status: req.body.doctorId ? "scheduled" : "scheduled",
       
-      // If therapist assigned, mark as confirmed
-      ...(req.body.assignedTherapist && {
+      // If doctor assigned, mark as confirmed
+      ...(req.body.doctorId && {
         confirmedBy: req.user._id,
         confirmedAt: new Date()
-      })
+      }),
+      createdBy: req.user._id
     };
 
     // Create the appointment
@@ -236,9 +243,9 @@ exports.createAppointment = async (req, res) => {
     // Return response
     res.status(201).json({
       success: true,
-      message: appointment.status === "confirmed" 
+      message: appointment.status === "scheduled" 
         ? "Appointment confirmed" 
-        : "Appointment requested",
+        : "Appointment scheduled",
       data: appointment,
     });
   } catch (err) {
@@ -265,149 +272,7 @@ exports.createAppointment = async (req, res) => {
   }
 };
 
-// @desc    Convert public appointment request to formal appointment
-// @route   PUT /api/appointments/convert-public/:id
-// @access  Private (Admin, Receptionist)
-exports.convertPublicAppointment = async (req, res) => {
-  try {
-    // Find the public appointment
-    const publicAppointment = await PublicAppointment.findById(req.params.id);
 
-    if (!publicAppointment) {
-      return res.status(404).json({
-        success: false,
-        error: "Public appointment request not found",
-      });
-    }
-
-    // Check if already converted
-    if (publicAppointment.convertedToAppointmentId) {
-      return res.status(400).json({
-        success: false,
-        error: "This public appointment has already been converted",
-      });
-    }
-
-    const {
-      assignedTherapist,
-      timeSlot,
-      serviceType,
-      patientId,
-      paymentAmount,
-      paymentMethod,
-      notes
-    } = req.body;
-
-    // Validate therapist
-    if (!assignedTherapist) {
-      return res.status(400).json({
-        success: false,
-        error: "Therapist assignment is required",
-      });
-    }
-    
-    const therapist = await User.findById(assignedTherapist);
-    if (!therapist || therapist.role !== "therapist") {
-      return res.status(404).json({
-        success: false,
-        error: "Therapist not found",
-      });
-    }
-
-    // Check therapist availability
-    const existingAppointment = await Appointment.findOne({
-      assignedTherapist,
-      date: publicAppointment.date,
-      timeSlot,
-      status: { $nin: ["cancelled", "no_show"] }
-    });
-
-    if (existingAppointment) {
-      return res.status(400).json({
-        success: false,
-        error: "Therapist is not available at this time slot",
-      });
-    }
-    
-    // Create appointment data
-    const appointmentData = {
-      serviceType: serviceType || publicAppointment.serviceType,
-      date: publicAppointment.date,
-      timeSlot: timeSlot || publicAppointment.preferredTime,
-      status: "confirmed",
-      assignedTherapist,
-      notes: notes || "",
-      
-      // Link to patient if provided, otherwise create new patient info
-      patient: patientId ? {
-        patientId
-      } : {
-        childName: publicAppointment.childName,
-        childGender: req.body.childGender || "other", // Required field
-        childDOB: req.body.childDOB || new Date() // Required field, would need to be specified
-      },
-      
-      // Parent info
-      parentInfo: patientId ? {} : {
-        parentName: `${publicAppointment.motherName} & ${publicAppointment.fatherName}`,
-        contactNumber: publicAppointment.contactNumber,
-        email: publicAppointment.email,
-        address: req.body.address || "To be updated" // Required field
-      },
-      
-      // Medical info
-      medicalInfo: {
-        primaryConcern: req.body.primaryConcern || "From public appointment request",
-        documents: []
-      },
-      
-      // Payment info
-      payment: {
-        amount: paymentAmount || 0,
-        method: paymentMethod || publicAppointment.paymentMethod,
-        status: "pending"
-      },
-      
-      // Reference to the source public appointment
-      convertedFromPublicId: publicAppointment._id,
-      
-      // Confirmed by
-      confirmedBy: req.user._id,
-      confirmedAt: new Date()
-    };
-    
-    // Create the formal appointment
-    const formalAppointment = await Appointment.create(appointmentData);
-    
-    // Update the public appointment with a reference to the formal appointment
-    publicAppointment.status = "confirmed";
-    publicAppointment.assignedTherapist = assignedTherapist;
-    publicAppointment.timeSlot = timeSlot;
-    publicAppointment.confirmedBy = req.user._id;
-    publicAppointment.confirmedAt = new Date();
-    publicAppointment.convertedToAppointmentId = formalAppointment._id;
-    await publicAppointment.save();
-    
-    // Populate therapist info for the response
-    await formalAppointment.populate({
-      path: "assignedTherapist",
-      select: "firstName lastName email phone",
-    });
-    
-    // Send response
-    res.status(200).json({
-      success: true,
-      data: formalAppointment,
-      message: "Public appointment has been converted to a formal appointment successfully",
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      success: false,
-      error: "Server Error",
-    });
-  }
-};
 
 // @desc    Update appointment status
 // @route   PUT /api/appointments/:id/status
@@ -423,6 +288,14 @@ exports.updateAppointmentStatus = async (req, res) => {
       });
     }
 
+    // Validate status
+    if (!["scheduled", "completed", "cancelled", "no_show"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid appointment status. Must be one of: scheduled, completed, cancelled, no_show",
+      });
+    }
+
     const appointment = await Appointment.findById(req.params.id);
 
     if (!appointment) {
@@ -435,14 +308,17 @@ exports.updateAppointmentStatus = async (req, res) => {
     // Update status
     appointment.status = status;
     
-    // Add additional info if completing or cancelling
-    if (status === "completed") {
-      appointment.completedAt = new Date();
-      appointment.completedBy = req.user._id;
-    } else if (status === "cancelled") {
+    // Add additional info if cancelling
+    if (status === "cancelled") {
       appointment.cancelledAt = new Date();
       appointment.cancelledBy = req.user._id;
       appointment.cancellationReason = req.body.reason || "Not specified";
+    } else if (status === "completed") {
+      appointment.completedAt = new Date();
+      appointment.completedBy = req.user._id;
+    } else if (status === "no_show") {
+      appointment.noShowAt = new Date();
+      appointment.noShowBy = req.user._id;
     }
 
     await appointment.save();
@@ -475,11 +351,11 @@ exports.getTherapistAppointments = async (req, res) => {
     }
 
     const appointments = await Appointment.find({
-      assignedTherapist: req.params.therapistId,
+      doctorId: req.params.therapistId,
     })
       .populate({
-        path: "patient.patientId",
-        select: "firstName lastName dateOfBirth gender",
+        path: "patientId",
+        select: "childName dateOfBirth gender",
       })
       .sort({ date: 1, timeSlot: 1 });
 
@@ -502,10 +378,10 @@ exports.getTherapistAppointments = async (req, res) => {
 exports.getPatientAppointments = async (req, res) => {
   try {
     const appointments = await Appointment.find({
-      "patient.patientId": req.params.patientId,
+      patientId: req.params.patientId,
     })
       .populate({
-        path: "assignedTherapist",
+        path: "doctorId",
         select: "firstName lastName",
       })
       .sort({ date: -1, timeSlot: 1 });
@@ -520,5 +396,374 @@ exports.getPatientAppointments = async (req, res) => {
       success: false,
       error: "Server Error",
     });
+  }
+};
+
+// @desc    Register patient and optionally schedule appointment (Receptionist)
+// @route   POST /api/appointments/register-patient
+// @access  Private (Admin, Receptionist)
+exports.registerPatientAndSchedule = async (req, res) => {
+  try {
+    const {
+      // Child's Information
+      childName,
+      childDOB,
+      childGender,
+      childPhoto,
+      birthCertificate,
+      
+      // Parent's Information
+      parentName,
+      contactNumber,
+      email,
+      parentPhoto,
+      address,
+      aadharCard,
+      
+      // Appointment Details (optional)
+      scheduleAppointment,
+      serviceType,
+      date,
+      timeSlot,
+      doctorId,
+      primaryConcern,
+      documents
+    } = req.body;
+
+    // Validate required fields
+    if (!childName || !childDOB || !childGender || !parentName || !contactNumber || !email || !address) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required patient information fields"
+      });
+    }
+
+    // Validate appointment fields if scheduling
+    if (scheduleAppointment && (!serviceType || !date || !timeSlot || !primaryConcern)) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required appointment fields"
+      });
+    }
+
+    // Create patient record
+    const patient = await Patient.create({
+      childName: childName,
+      childDOB: childDOB,
+      childGender: childGender,
+      childPhoto: childPhoto || '',
+      birthCertificate: birthCertificate || '',
+      parentName,
+      contactNumber,
+      email,
+      address,
+      aadharCard: aadharCard || '',
+      parentPhoto: parentPhoto || ''
+    });
+
+    // If scheduleAppointment is true, create appointment
+    if (scheduleAppointment) {
+      // Check doctor availability if a doctor is assigned
+      if (doctorId) {
+        const existingAppointment = await Appointment.findOne({
+          doctorId,
+          date,
+          timeSlot,
+          status: { $ne: "cancelled" }
+        });
+
+        if (existingAppointment) {
+        return res.status(400).json({
+          success: false,
+            error: "Doctor is not available at this time slot",
+            data: { patient }
+        });
+      }
+    }
+
+      const appointment = await Appointment.create({
+        patientId: patient._id,
+        doctorId,
+        serviceType,
+        date,
+        timeSlot,
+        status: "scheduled",
+        primaryConcern,
+        documents: documents || [],
+        notes: `New patient registered by ${req.user.firstName} ${req.user.lastName}`,
+        createdBy: req.user._id
+      });
+
+      // Send confirmation email to parent if email functionality is available
+      try {
+        const emailSubject = `Appointment Confirmation for ${childName}`;
+        const emailMessage = `
+          <h2>Appointment Confirmation</h2>
+          <p>Dear ${parentName},</p>
+          <p>Your appointment for ${childName} has been scheduled.</p>
+          <p><strong>Appointment Details:</strong></p>
+          <ul>
+            <li><strong>Date:</strong> ${new Date(date).toLocaleDateString()}</li>
+            <li><strong>Time:</strong> ${timeSlot}</li>
+            <li><strong>Service:</strong> ${serviceType}</li>
+            <li><strong>Primary Concern:</strong> ${primaryConcern}</li>
+          </ul>
+          <p>Please arrive 15 minutes before your scheduled time.</p>
+          <p>Best regards,<br>8 Senses Clinic</p>
+        `;
+
+        if (typeof sendEmail === 'function') {  
+          await sendEmail({
+            to: email,
+            subject: emailSubject,
+            html: emailMessage
+          });
+        } else {
+          console.log('Email function not available');
+        }
+      } catch (emailError) {
+        console.error('Error sending appointment confirmation email:', emailError);
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: "Patient registered and appointment scheduled successfully",
+        data: {
+          patient,
+          appointment
+        }
+      });
+    }
+
+    // If no appointment scheduling, just return patient data
+    return res.status(201).json({
+      success: true,
+      message: "Patient registered successfully",
+      data: {
+        patient
+      }
+    });
+
+  } catch (err) {
+    console.error('Error in registerPatientAndSchedule:', err);
+    
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((val) => val.message);
+      return res.status(400).json({
+        success: false,
+        error: messages,
+      });
+    } else if (err.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        error: "Patient with this email already exists"
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        error: "Server Error"
+      });
+    }
+  }
+};
+
+// @desc    Schedule appointment for existing patient
+// @route   POST /api/appointments/schedule-existing/:patientId
+// @access  Private (Admin, Receptionist)
+exports.scheduleExistingPatient = async (req, res) => {
+  try {
+    const {
+      serviceType,
+      date,
+      timeSlot,
+      doctorId,
+      primaryConcern,
+      documents
+    } = req.body;
+
+    const patientId = req.params.patientId;
+
+    // Validate required fields
+    if (!patientId || !serviceType || !date || !timeSlot || !doctorId || !primaryConcern) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields"
+      });
+    }
+
+    // Check if patient exists
+    const patient = await Patient.findById(patientId);
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        error: "Patient not found"
+      });
+    }
+
+    // Check if doctor exists
+    const doctor = await User.findById(doctorId);
+    if (!doctor || doctor.role !== "therapist") {
+      return res.status(404).json({
+        success: false,
+        error: "Doctor not found"
+      });
+    }
+
+    // Check doctor availability
+    const existingAppointment = await Appointment.findOne({
+      doctorId,
+      date,
+      timeSlot,
+      status: { $ne: "cancelled" }
+    });
+
+    if (existingAppointment) {
+      return res.status(400).json({
+        success: false,
+        error: "Doctor is not available at this time slot"
+      });
+    }
+
+    // Create appointment
+    const appointment = await Appointment.create({
+      patientId,
+      doctorId,
+      serviceType,
+      date,
+      timeSlot,
+      status: "scheduled",
+      primaryConcern,
+      documents: documents || [],
+      notes: `Appointment scheduled by ${req.user.firstName} ${req.user.lastName}`,
+      createdBy: req.user._id
+    });
+
+    // Send confirmation email
+    const emailSubject = `Appointment Confirmation for ${patient.childName}`;
+    const emailMessage = `
+      <h2>Appointment Confirmation</h2>
+      <p>Dear ${patient.parentName},</p>
+      <p>Your appointment for ${patient.childName} has been scheduled.</p>
+      <p><strong>Appointment Details:</strong></p>
+      <ul>
+        <li><strong>Date:</strong> ${new Date(date).toLocaleDateString()}</li>
+        <li><strong>Time:</strong> ${timeSlot}</li>
+        <li><strong>Service:</strong> ${serviceType}</li>
+        <li><strong>Primary Concern:</strong> ${primaryConcern}</li>
+        <li><strong>Status:</strong> Scheduled</li>
+      </ul>
+      <p>Please arrive 15 minutes before your scheduled time.</p>
+      <p>Best regards,<br>8 Senses Clinic</p>
+    `;
+
+    try {
+      if (typeof sendEmail === 'function') {
+        await sendEmail({
+          to: patient.email,
+          subject: emailSubject,
+          html: emailMessage
+        });
+      }
+    } catch (emailError) {
+      console.error('Error sending appointment confirmation email:', emailError);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Appointment scheduled successfully",
+      data: appointment
+    });
+
+  } catch (err) {
+    console.error('Error in scheduleExistingPatient:', err);
+    res.status(500).json({
+      success: false,
+      error: "Server Error"
+    });
+  }
+};
+
+// @desc    Register patient only (without scheduling an appointment)
+// @route   POST /api/appointments/register-patient-only
+// @access  Private (Admin, Receptionist)
+exports.registerPatientOnly = async (req, res) => {
+  try {
+    const {
+      // Child's Information
+      childName,
+      childDOB,
+      childGender,
+      childPhoto,
+      birthCertificate,
+      
+      // Parent's Information
+      parentName,
+      contactNumber,
+      email,
+      parentPhoto,
+      address,
+      aadharCard
+    } = req.body;
+
+    // Validate required fields
+    if (!childName || !childDOB || !childGender || !parentName || !contactNumber || !email || !address) {
+      return res.status(400).json({
+      success: false,
+        error: "Missing required fields"
+      });
+    }
+
+    // Validate and convert date
+    const dateOfBirth = new Date(childDOB);
+    if (isNaN(dateOfBirth.getTime())) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid date of birth format. Please use YYYY-MM-DD format."
+      });
+    }
+
+    // Create patient record
+    const patient = await Patient.create({
+      childName: childName,
+      childDOB: childDOB,
+      childGender: childGender,
+      childPhoto: childPhoto || '',
+      birthCertificate: birthCertificate || '',
+      parentName,
+      contactNumber,
+      email,
+      address,
+      aadharCard: aadharCard || '',
+      parentPhoto: parentPhoto || ''
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Patient registered successfully. You can schedule an appointment for this patient later.",
+      data: {
+        patient
+      }
+    });
+
+  } catch (err) {
+    console.error('Error in registerPatientOnly:', err);
+    
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((val) => val.message);
+      return res.status(400).json({
+      success: false,
+        error: messages,
+      });
+    } else if (err.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        error: "Patient with this email already exists"
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        error: "Server Error"
+      });
+    }
   }
 };

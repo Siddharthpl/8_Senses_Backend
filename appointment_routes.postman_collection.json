@@ -1,0 +1,391 @@
+{
+	"info": {
+		"_postman_id": "8c59d2ea-4e58-4a7e-825c-f5a9b36d6a74",
+		"name": "8Senses Appointment APIs",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"description": "Collection for testing all appointment-related APIs"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"receptionist@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login to get authentication token"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints to get JWT token"
+		},
+		{
+			"name": "Appointment Management",
+			"item": [
+				{
+					"name": "Get All Appointments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/appointments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"appointments"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "scheduled",
+									"description": "Filter by status",
+									"disabled": true
+								},
+								{
+									"key": "patientId",
+									"value": "60d5ec9c72ea2a001f9a72c1",
+									"description": "Filter by patient ID",
+									"disabled": true
+								},
+								{
+									"key": "therapistId",
+									"value": "60d5ec9c72ea2a001f9a72c2",
+									"description": "Filter by doctor ID",
+									"disabled": true
+								},
+								{
+									"key": "startDate",
+									"value": "2024-01-01",
+									"description": "Filter by start date",
+									"disabled": true
+								},
+								{
+									"key": "endDate",
+									"value": "2024-12-31",
+									"description": "Filter by end date",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get all appointments with optional filters"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Appointment",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/appointments/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"appointments",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "60d5ec9c72ea2a001f9a72c3",
+									"description": "Appointment ID"
+								}
+							]
+						},
+						"description": "Get a single appointment by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Appointment Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"completed\",\n  \"reason\": \"Service completed successfully\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/appointments/:id/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"appointments",
+								":id",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "60d5ec9c72ea2a001f9a72c3",
+									"description": "Appointment ID"
+								}
+							]
+						},
+						"description": "Update appointment status (scheduled, completed, cancelled, etc)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Therapist's Appointments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/appointments/therapist/:therapistId",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"appointments",
+								"therapist",
+								":therapistId"
+							],
+							"variable": [
+								{
+									"key": "therapistId",
+									"value": "60d5ec9c72ea2a001f9a72c2",
+									"description": "Doctor ID"
+								}
+							]
+						},
+						"description": "Get all appointments for a specific doctor"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Patient's Appointments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/appointments/patient/:patientId",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"appointments",
+								"patient",
+								":patientId"
+							],
+							"variable": [
+								{
+									"key": "patientId",
+									"value": "60d5ec9c72ea2a001f9a72c1",
+									"description": "Patient ID"
+								}
+							]
+						},
+						"description": "Get all appointments for a specific patient"
+					},
+					"response": []
+				}
+			],
+			"description": "Appointment viewing and management endpoints"
+		},
+		{
+			"name": "Patient Registration & Scheduling",
+			"item": [
+				{
+					"name": "Register Patient Only (Register for Later)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"childName\": \"John Doe\",\n  \"childDOB\": \"2019-05-15\",\n  \"childGender\": \"male\",\n  \"childPhoto\": \"https://example.com/child.jpg\",\n  \"birthCertificate\": \"https://example.com/certificate.pdf\",\n  \"parentName\": \"Jane Doe\",\n  \"contactNumber\": \"9876543210\",\n  \"email\": \"jane.doe@example.com\",\n  \"parentPhoto\": \"https://example.com/parent.jpg\",\n  \"address\": \"123 Main Street, City, Country\",\n  \"aadharCard\": \"https://example.com/aadhar.pdf\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/appointments/register-patient-only",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"appointments",
+								"register-patient-only"
+							]
+						},
+						"description": "Register a patient without scheduling an appointment (Register for Later button)"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Patient and Schedule Appointment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"childName\": \"Sarah Smith\",\n  \"childDOB\": \"2020-02-10\",\n  \"childGender\": \"female\",\n  \"childPhoto\": \"https://example.com/child.jpg\",\n  \"birthCertificate\": \"https://example.com/certificate.pdf\",\n  \"parentName\": \"Michael Smith\",\n  \"contactNumber\": \"9876543211\",\n  \"email\": \"michael.smith@example.com\",\n  \"parentPhoto\": \"https://example.com/parent.jpg\",\n  \"address\": \"456 Oak Avenue, City, Country\",\n  \"aadharCard\": \"https://example.com/aadhar.pdf\",\n  \n  \"scheduleAppointment\": true,\n  \"serviceType\": \"assessment\",\n  \"date\": \"2024-05-20\",\n  \"timeSlot\": \"10:00-11:00\",\n  \"doctorId\": \"60d5ec9c72ea2a001f9a72c2\",\n  \"primaryConcern\": \"Speech delay and limited vocalization\",\n  \"documents\": [\n    \"https://example.com/medical-report.pdf\",\n    \"https://example.com/previous-assessment.pdf\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/appointments/register-patient",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"appointments",
+								"register-patient"
+							]
+						},
+						"description": "Register a patient and schedule an appointment (Register and Schedule button)"
+					},
+					"response": []
+				},
+				{
+					"name": "Schedule Appointment for Existing Patient",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"serviceType\": \"therapy\",\n  \"date\": \"2024-05-25\",\n  \"timeSlot\": \"14:00-15:00\",\n  \"doctorId\": \"60d5ec9c72ea2a001f9a72c2\",\n  \"primaryConcern\": \"Follow-up therapy session for speech development\",\n  \"documents\": [\n    \"https://example.com/progress-report.pdf\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/appointments/schedule-existing/:patientId",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"appointments",
+								"schedule-existing",
+								":patientId"
+							],
+							"variable": [
+								{
+									"key": "patientId",
+									"value": "60d5ec9c72ea2a001f9a72c1",
+									"description": "Patient ID"
+								}
+							]
+						},
+						"description": "Schedule an appointment for an existing patient"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints for patient registration and appointment scheduling"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "YOUR_JWT_TOKEN_HERE",
+			"type": "string"
+		}
+	]
+} 

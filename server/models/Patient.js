@@ -2,191 +2,98 @@ const mongoose = require("mongoose");
 
 const PatientSchema = new mongoose.Schema(
   {
-    parentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: [true, "Please add a parent/guardian"],
-    },
-    firstName: {
+    // Child's Information
+    childName: {
       type: String,
-      required: [true, "Please add a first name"],
-      trim: true,
+      required: [true, "Please provide child's full name"],
+      trim: true
     },
-    lastName: {
-      type: String,
-      required: [true, "Please add a last name"],
-      trim: true,
-    },
-    dateOfBirth: {
+    childDOB: {
       type: Date,
-      required: [true, "Please add a date of birth"],
+      required: [true, "Please provide date of birth"]
     },
-    gender: {
+    childGender: {
       type: String,
-      enum: ["male", "female", "other"],
-      required: [true, "Please specify gender"],
+      required: [true, "Please provide gender"],
+      enum: ["male", "female", "other"]
     },
-    photo: {
-      url: String,
-      public_id: String,
+    age: {
+      type: Number
+    },
+    childPhoto: {
+      type: String, // URL from file upload API
+      default: ""
     },
     birthCertificate: {
-      url: String,
-      public_id: String,
+      type: String, // URL from file upload API
+      default: ""
     },
-    medicalHistory: {
+
+    // Parent's Information
+    parentName: {
       type: String,
+      required: [true, "Please provide parent/guardian name"],
+      trim: true
     },
-    diagnosis: {
+    contactNumber: {
       type: String,
+      required: [true, "Please provide contact number"],
+      match: [/^[0-9]{10}$/, "Please enter a valid 10-digit phone number"]
     },
-    allergies: {
-      type: [String],
-      default: [],
+    email: {
+      type: String,
+      required: [true, "Please provide email address"],
+      match: [
+        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+        "Please provide a valid email"
+      ]
     },
-    emergencyContact: {
-      name: {
-        type: String,
-        required: [true, "Please add emergency contact name"],
-      },
-      relation: {
-        type: String,
-        required: [true, "Please add relation to patient"],
-      },
-      phone: {
-        type: String,
-        required: [true, "Please add emergency contact phone"],
-      },
+    parentPhoto: {
+      type: String, // URL from file upload API
+      default: ""
     },
-    parentInfo: {
-      name: {
-        type: String,
-        required: [true, "Please add parent/guardian name"],
-      },
-      phone: {
-        type: String,
-        required: [true, "Please add parent/guardian phone"],
-      },
-      email: {
-        type: String,
-        match: [
-          /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-          "Please add a valid email",
-        ],
-      },
-      photo: {
-        url: String,
-        public_id: String,
-      },
-      relationship: {
-        type: String,
-        enum: ["Father", "Mother", "Guardian", "Other"],
-        default: "Guardian",
-      },
-      address: {
-        type: String,
-        trim: true,
-      },
+    address: {
+      type: String,
+      required: [true, "Please provide address"]
     },
     aadharCard: {
-      url: String,
-      public_id: String,
+      type: String, // URL from file upload API
+      default: ""
     },
-    medicalRecords: [
-      {
-        url: String,
-        public_id: String,
-        name: String,
-        uploadDate: {
-          type: Date,
-          default: Date.now,
-        },
-        uploadedBy: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-      },
-    ],
-    therapistNotes: [
-      {
-        therapistId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
-        date: {
-          type: Date,
-          default: Date.now,
-        },
-        note: {
-          type: String,
-          required: [true, "Please add note content"],
-        },
-      },
-    ],
-    assessments: [
-      {
-        date: {
-          type: Date,
-          required: [true, "Please add assessment date"],
-        },
-        type: {
-          type: String,
-          required: [true, "Please add assessment type"],
-        },
-        summary: {
-          type: String,
-          required: [true, "Please add assessment summary"],
-        },
-        conductedBy: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
-        documents: [
-          {
-            url: String,
-            public_id: String,
-            name: String,
-            uploadDate: {
-              type: Date,
-              default: Date.now,
-            },
-          },
-        ],
-      },
-    ],
+
+    // Status and Metadata
+    status: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "active"
+    },
+    lastAppointment: {
+      type: Date
+    },
+    nextAppointment: {
+      type: Date
+    }
   },
   {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    timestamps: true
   }
 );
 
-// Create full name virtual
-PatientSchema.virtual("fullName").get(function () {
-  return `${this.firstName} ${this.lastName}`;
-});
-
-// Calculate age virtual
-PatientSchema.virtual("age").get(function () {
-  const today = new Date();
-  const birthDate = new Date(this.dateOfBirth);
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
+// Calculate age before saving
+PatientSchema.pre('save', function(next) {
+  if (this.childDOB) {
+    const today = new Date();
+    const birthDate = new Date(this.childDOB);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    this.age = age;
   }
-  return age;
-});
-
-// Virtual for appointments
-PatientSchema.virtual("appointments", {
-  ref: "Appointment",
-  localField: "_id",
-  foreignField: "patientId",
-  justOne: false,
+  next();
 });
 
 module.exports = mongoose.model("Patient", PatientSchema);
