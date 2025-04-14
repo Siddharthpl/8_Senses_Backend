@@ -12,22 +12,33 @@ const TransactionSchema = new mongoose.Schema({
   },
   order: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Order",
+    ref: "Subscription",
     required: true,
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
+    required: false,
+  },
+  customerName: {
+    type: String,
     required: true,
   },
-  customerName: String,
+  customerEmail: {
+    type: String,
+    required: true,
+  },
+  customerPhone: {
+    type: String,
+    required: true,
+  },
   amount: {
     type: Number,
     required: true,
   },
   currency: {
     type: String,
-    default: "USD",
+    default: "INR",
   },
   paymentMethod: {
     type: String,
@@ -35,11 +46,24 @@ const TransactionSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["pending", "successful", "failed", "refunded", "partially_refunded"],
+    enum: ["pending", "successful", "failed", "refunded"],
     default: "pending",
   },
   paymentDetails: {
+    orderId: String,
+    paymentId: String,
+    method: String,
+    bank: String,
+    wallet: String,
+    vpa: String,
+    email: String,
+    contact: String,
+    fee: Number,
+    tax: Number,
+  },
+  metadata: {
     type: mongoose.Schema.Types.Mixed,
+    default: {},
   },
   refundDetails: [
     {
@@ -59,6 +83,8 @@ const TransactionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+}, {
+  timestamps: true
 });
 
 // Generate transaction ID if not provided

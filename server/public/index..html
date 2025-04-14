@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Razorpay Payment Test</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Razorpay Subscription Payment</h1>
+    
+    <div class="form-group">
+        <label for="planId">Plan ID (MongoDB ID):</label>
+        <input type="text" id="planId" placeholder="Enter subscription plan ID">
+    </div>
+    
+    <div class="form-group">
+        <label for="name">Name:</label>
+        <input type="text" id="name" placeholder="Your name">
+    </div>
+    
+    <div class="form-group">
+        <label for="email">Email:</label>
+        <input type="email" id="email" placeholder="Your email">
+    </div>
+    
+    <div class="form-group">
+        <label for="phone">Phone:</label>
+        <input type="text" id="phone" placeholder="Your phone number">
+    </div>
+    
+    <button onclick="initiatePayment()">Initiate Payment</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        async function initiatePayment() {
+            const planId = document.getElementById('planId').value;
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'none';
+            
+            try {
+                // Step 1: Initiate payment with your backend
+                const response = await fetch('/api/payments/subscription', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        planId,
+                        name,
+                        email,
+                        phone
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to initiate payment');
+                }
+                
+                // Step 2: Open Razorpay checkout
+                const options = {
+                    key: data.data.key,
+                    amount: data.data.amount,
+                    currency: data.data.currency,
+                    name: data.data.name,
+                    description: data.data.description,
+                    order_id: data.data.order.id,
+                    handler: async function(response) {
+                        // Step 3: Verify payment with your backend
+                        try {
+                            const verifyResponse = await fetch('/api/payments/subscription/verify', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    razorpay_order_id: response.razorpay_order_id,
+                                    razorpay_payment_id: response.razorpay_payment_id,
+                                    razorpay_signature: response.razorpay_signature,
+                                    subscriptionId: data.data.subscriptionId
+                                })
+                            });
+                            
+                            const verifyData = await verifyResponse.json();
+                            
+                            if (!verifyResponse.ok) {
+                                throw new Error(verifyData.error || 'Payment verification failed');
+                            }
+                            
+                            // Display success message
+                            showResult('Payment successful! Subscription activated.', 'success');
+                            console.log('Payment verification response:', verifyData);
+                        } catch (error) {
+                            showResult('Payment verification failed: ' + error.message, 'error');
+                            console.error('Verification error:', error);
+                        }
+                    },
+                    prefill: {
+                        name: name,
+                        email: email,
+                        contact: phone
+                    },
+                    notes: {
+                        planId: planId,
+                        subscriptionId: data.data.subscriptionId
+                    },
+                    theme: {
+                        color: '#3399cc'
+                    }
+                };
+                
+                const rzp = new Razorpay(options);
+                rzp.open();
+                
+            } catch (error) {
+                showResult('Error: ' + error.message, 'error');
+                console.error('Payment initiation error:', error);
+            }
+        }
+        
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.className = type;
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

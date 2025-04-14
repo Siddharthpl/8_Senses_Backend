@@ -1,8 +1,8 @@
-const AppointmentForm = require('../models/AppointmentForm');
 const { sendEmail } = require('../config/email');
-
+const AppointmentForm = require('../models/AppointmentForm');
 // Submit appointment form
 exports.submitAppointmentForm = async (req, res) => {
+
   try {
     const {
       motherName,

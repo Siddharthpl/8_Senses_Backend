@@ -3,7 +3,8 @@ const ErrorResponse = require('../utils/errorResponse');
 const SubscriptionPlan = require('../models/SubscriptionPlan');
 const Subscription = require('../models/Subscription');
 const Transaction = require('../models/Transaction');
-const { createOrder, verifyPaymentSignature, getPaymentDetails } = require('../utils/razorpay');
+const { razorpay, createOrder, verifyPaymentSignature, getPaymentDetails } = require('../utils/razorpay');
+const crypto = require('crypto');
 
 // Validation rules
 exports.validatePaymentInitiation = [
@@ -97,7 +98,7 @@ exports.initiateSubscriptionPayment = async (req, res, next) => {
 
     // Create Razorpay order
     const razorpayOrder = await createOrder({
-      amount: plan.price,
+      amount: plan.price * 100, // Convert to paise
       currency: 'INR',
       receipt: `sub_${Date.now()}`,
       notes: {
@@ -267,9 +268,11 @@ exports.verifySubscriptionPayment = async (req, res, next) => {
     // Create transaction record
     const transaction = await Transaction.create({
       transactionId: razorpay_payment_id,
-      order: subscription._id, // Using subscription as the order
-      user: req.user ? req.user._id : null, // If authenticated
+      order: subscription._id,
+      user: req.user ? req.user._id : null, // Optional user field
       customerName: subscription.name,
+      customerEmail: subscription.email,
+      customerPhone: subscription.phone,
       amount: subscription.plan.price,
       currency: paymentDetails.currency || 'INR',
       paymentMethod: 'razorpay',
@@ -285,6 +288,11 @@ exports.verifySubscriptionPayment = async (req, res, next) => {
         contact: subscription.phone,
         fee: paymentDetails.fee,
         tax: paymentDetails.tax,
+      },
+      metadata: {
+        subscriptionId: subscription._id,
+        planName: subscription.plan.name,
+        billingCycle: subscription.plan.billingCycle
       }
     });
 
@@ -346,5 +354,29 @@ exports.cancelSubscription = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+exports.createOrder = async (req, res) => {
+  try {
+    const { amount, currency = 'INR', receipt, notes } = req.body;
+    
+    const order = await createOrder({
+      amount: amount * 100, // Convert to paise
+      currency,
+      receipt,
+      notes
+    });
+
+    res.status(200).json({
+      success: true,
+      order
+    });
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create order'
+    });
   }
 }; 

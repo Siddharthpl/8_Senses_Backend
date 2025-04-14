@@ -148,7 +148,7 @@ exports.verifyProductPayment = async (req, res, next) => {
       });
     }
 
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId, customerEmail, customerPhone } = req.body;
 
     // Verify payment signature
     const isValidSignature = verifyPaymentSignature({
@@ -183,6 +183,8 @@ exports.verifyProductPayment = async (req, res, next) => {
       order: order._id,
       user: order.user || null,
       customerName: order.customerInfo.firstName + ' ' + order.customerInfo.lastName,
+      customerEmail: customerEmail || order.customerInfo.email, // Use from request or order
+      customerPhone: customerPhone || order.customerInfo.phone, // Use from request or order
       amount: order.total,
       currency: 'INR',
       paymentMethod: 'razorpay',

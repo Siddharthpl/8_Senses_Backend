@@ -2,6 +2,7 @@ const { validationResult, check } = require("express-validator");
 const Transaction = require("../models/Transaction");
 const Order = require("../models/Order");
 const ErrorResponse = require("../utils/errorResponse");
+const ProductTransaction = require('../models/ProductTransaction');
 
 // Validation rules
 exports.createTransactionValidation = [
@@ -406,5 +407,142 @@ exports.processRefund = async (req, res, next) => {
     });
   } catch (err) {
     next(err);
+  }
+};
+
+/**
+ * @desc    Initiate product payment
+ * @route   POST /api/payments/product
+ * @access  Public
+ */
+exports.initiateProductPayment = async (req, res, next) => {
+  try {
+    // Validate request
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { productId, name, email, phone, amount } = req.body;
+
+    // Create Razorpay order
+    const razorpayOrder = await createOrder({
+      amount: amount * 100, // Convert to paise
+      currency: 'INR',
+      receipt: `prod_${Date.now()}`,
+      notes: {
+        productId,
+        customerName: name,
+        customerEmail: email,
+        customerPhone: phone
+      }
+    });
+
+    // Return payment information to client
+    res.status(200).json({
+      success: true,
+      data: {
+        order: razorpayOrder,
+        key: process.env.RAZORPAY_KEY_ID,
+        amount,
+        currency: 'INR',
+        name: '8 Senses Clinic',
+        description: 'Product Purchase',
+        prefill: {
+          name,
+          email,
+          contact: phone
+        },
+        notes: {
+          productId
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error initiating product payment:', error);
+    next(error);
+  }
+};
+
+/**
+ * @desc    Verify product payment
+ * @route   POST /api/payments/product/verify
+ * @access  Public
+ */
+exports.verifyProductPayment = async (req, res, next) => {
+  try {
+    // Validate request
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, productId } = req.body;
+
+    // Verify payment signature
+    const isValidSignature = verifyPaymentSignature({
+      orderId: razorpay_order_id,
+      paymentId: razorpay_payment_id,
+      signature: razorpay_signature
+    });
+
+    if (!isValidSignature) {
+      return next(new ErrorResponse('Invalid payment signature', 400));
+    }
+
+    // Get payment details from Razorpay
+    const paymentDetails = await getPaymentDetails(razorpay_payment_id);
+
+    // Create transaction record
+    const transaction = await ProductTransaction.create({
+      transactionId: razorpay_payment_id,
+      productId,
+      user: req.user ? req.user._id : null, // Optional user field
+      customerName: req.body.name,
+      customerEmail: req.body.email,
+      customerPhone: req.body.phone,
+      amount: req.body.amount,
+      currency: paymentDetails.currency || 'INR',
+      paymentMethod: 'razorpay',
+      status: 'successful',
+      paymentDetails: {
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        method: paymentDetails.method || 'card',
+        bank: paymentDetails.bank,
+        wallet: paymentDetails.wallet,
+        vpa: paymentDetails.vpa,
+        email: req.body.email,
+        contact: req.body.phone,
+        fee: paymentDetails.fee,
+        tax: paymentDetails.tax,
+      },
+      metadata: {
+        productId
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment successful',
+      data: {
+        transaction: {
+          id: transaction._id,
+          transactionId: transaction.transactionId,
+          amount: transaction.amount,
+          status: transaction.status,
+          date: transaction.createdAt
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error verifying product payment:', error);
+    next(error);
   }
 };

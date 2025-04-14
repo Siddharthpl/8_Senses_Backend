@@ -1,11 +1,37 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+
+
+console.log('[ENV DEBUG] Loaded KEY_ID:', process.env.RAZORPAY_KEY_ID);
+console.log('[ENV DEBUG] Loaded KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET);
+
+
+// Validate Razorpay credentials
+if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+  console.error('Razorpay credentials are missing in environment variables');
+  throw new Error('Razorpay credentials are not configured');
+}
 
 // Initialize Razorpay instance
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+  key_id: "rzp_test_ksEdWVO56wIwkj",
+  key_secret: "IXkXi34tNLhCu0IQajf6iYNb",
 });
+
+// Test Razorpay connection
+const testRazorpayConnection = async () => {
+  try {
+    await razorpay.orders.all({ count: 1 });
+    console.log('Razorpay connection successful');
+  } catch (error) {
+    console.error('Razorpay connection failed:', error);
+    throw new Error('Failed to connect to Razorpay. Please check your credentials.');
+  }
+};
+
+// Test connection on startup
+testRazorpayConnection().catch(console.error);
 
 /**
  * Create a Razorpay order
@@ -17,19 +43,30 @@ const razorpay = new Razorpay({
  * @returns {Promise<Object>} Razorpay order object
  */
 const createOrder = async (options) => {
-  const orderOptions = {
-    amount: options.amount * 100, // Convert to paise
-    currency: options.currency || 'INR',
-    receipt: options.receipt || `receipt_${Date.now()}`,
-    notes: options.notes || {},
-    payment_capture: 1, // Auto-capture payment
-  };
-
   try {
+    const orderOptions = {
+      amount: options.amount,
+      currency: options.currency || 'INR',
+      receipt: options.receipt || `receipt_${Date.now()}`,
+      notes: options.notes || {},
+      payment_capture: 1,
+    };
+
+    console.log('Creating Razorpay order with options:', orderOptions);
     const order = await razorpay.orders.create(orderOptions);
+    console.log('Order created successfully:', order.id);
     return order;
   } catch (error) {
-    console.error('Error creating Razorpay order:', error);
+    console.error('Error creating Razorpay order:', {
+      statusCode: error.statusCode,
+      error: error.error,
+      message: error.message
+    });
+    
+    if (error.statusCode === 401) {
+      throw new Error('Razorpay authentication failed. Please check your API credentials.');
+    }
+    
     throw new Error(error.message || 'Failed to create payment order');
   }
 };
@@ -73,8 +110,8 @@ const getPaymentDetails = async (paymentId) => {
 };
 
 module.exports = {
+  razorpay,
   createOrder,
   verifyPaymentSignature,
-  getPaymentDetails,
-  razorpay
+  getPaymentDetails
 }; 
